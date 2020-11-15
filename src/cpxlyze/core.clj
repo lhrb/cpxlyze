@@ -80,15 +80,37 @@
 
 (sprint-interval "2020-11-11" "2019-01-01")
 
-(oz/view! {:width 800
-           :data {:values
-                  (sprint-summaries
-                   (group-by-sprint
-                    (sprint-interval "2020-11-11" "2019-01-01")
-                    log))}
-           :mark "line"
-           :encoding {:y {:field "commits" :type "quantitative"}
-                      :x {:field "sprint" :type "temporal"}}})
+(let [data (sprint-summaries
+                    (group-by-sprint
+                     (sprint-interval "2020-11-11" "2019-01-01")
+                     log))]
+  (oz/view!
+   [:div
+
+    [:vega-lite
+     {:width 800
+      :data {:values data}
+      :mark "line"
+      :encoding {:y {:field "commits" :type "quantitative"}
+                 :x {:field "sprint" :type "temporal"}}}]
+    [:vega-lite
+     {:width 800
+      :data {:values data}
+      :mark "line"
+      :encoding {:y {:field "added" :type "quantitative"}
+                 :x {:field "sprint" :type "temporal"}}}]
+    [:vega-lite
+     {:width 800
+      :data {:values data}
+      :mark "line"
+      :encoding {:y {:field "deleted" :type "quantitative"}
+                 :x {:field "sprint" :type "temporal"}}}]
+    [:vega-lite
+     {:width 800
+      :data {:values data}
+      :mark "line"
+      :encoding {:y {:field "entities-changed" :type "quantitative"}
+                 :x {:field "sprint" :type "temporal"}}}]]))
 
 
 (defn -main

@@ -49,10 +49,19 @@
          sprints))))
 
 (defn sprint-summaries [sprints]
-  (let [formatter (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")]
+  (let [formatter (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd")
+        normalize (fn [x y] (int (/ y x)))]
    (->> sprints
         (map (fn [m] (assoc (summary (:data m))
-                            :sprint (.format (:sprint/start m) formatter)))))))
+                            :sprint (.format (:sprint/start m) formatter))))
+        (map (fn [m] (if (= 0 (:authors m))
+                       m
+                       (let [f (partial normalize (:authors m))]
+                        (-> m
+                            (update :commits f)
+                            (update :added f)
+                            (update :deleted f)))))))))
+
 
 (comment
   (require '[cpxlyze.parsers.git :refer [get-log]])
