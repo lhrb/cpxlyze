@@ -109,7 +109,7 @@
      {:width 800
       :data {:values data}
       :mark "line"
-      :encoding {:y {:field "entities-changed" :type "quantitative"}
+      :encoding {:y {:field "entities" :type "quantitative"}
                  :x {:field "sprint" :type "temporal"}}}]]))
 
 
