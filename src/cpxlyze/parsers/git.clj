@@ -13,7 +13,7 @@
     <prelude> = <separator> rev <separator> date <separator> author <separator> message <nl>
     rev = #'[\\da-f]+'
     date = #'\\d{4}-\\d{2}-\\d{2}'
-    author = #'[\\w{\\s\\w}]*'
+    author = #'[\\p{L}\\p{N}_]*([\\s_-]?[\\p{L}\\p{N}_])*'
     message = #'[^\\n]*'
     changes = change*
     change = added <tab> deleted <tab> filename <nl>
@@ -93,7 +93,7 @@
 (comment
 
   (def entry-str
-    "--5f84c6b--2020-01-25--Author name--Commit message
+    "--5f84c6b--2020-01-25--Authör na-m_e--Commit message
 3\t3\tREADME.md")
 
   (entry-grammar entry-str)
