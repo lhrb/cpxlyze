@@ -9,4 +9,4 @@
 /.nrepl-port
 .hgignore
 .hg/
-/resources
+/resources/*
