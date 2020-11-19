@@ -9,7 +9,9 @@
   metasoarous/oz {:mvn/version "1.6.0-alpha30"}
   clojure-csv {:mvn/version "2.0.2"}
   cheshire {:mvn/version "5.10.0"}
-  org.clojure/math.combinatorics {:mvn/version "0.1.6"}}
+  org.clojure/math.combinatorics {:mvn/version "0.1.6"}
+  ring/ring {:mvn/version "1.8.2"}
+  compojure/compojure {:mvn/version "1.6.2"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {org.clojure/test.check {:mvn/version "0.10.0"}}}
