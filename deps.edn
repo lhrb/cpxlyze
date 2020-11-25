@@ -10,8 +10,9 @@
   clojure-csv {:mvn/version "2.0.2"}
   cheshire {:mvn/version "5.10.0"}
   org.clojure/math.combinatorics {:mvn/version "0.1.6"}
-  ring/ring {:mvn/version "1.8.2"}
-  compojure/compojure {:mvn/version "1.6.2"}}
+  metosin/reitit {:mvn/version "0.5.10"}
+  criterium/criterium {:mvn/version "0.4.6"}
+  io.replikativ/datahike {:mvn/version "0.3.2"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {org.clojure/test.check {:mvn/version "0.10.0"}}}
