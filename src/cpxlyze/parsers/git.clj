@@ -1,10 +1,10 @@
 (ns cpxlyze.parsers.git
   (:require [instaparse.core :as insta]
-            [clojure.java.shell :refer [sh]]))
+            [clojure.java.shell :refer [sh]]
+            [clojure.set :refer [rename-keys]]))
 
 ;;; parser for output of
 ;;; git log --all -M -C --numstat --date=short --pretty=format:'--%h--%cd--%cn--%s'
-(def log-file "resources/cb.log")
 
 (def entry-grammar
   (insta/parser
@@ -34,6 +34,23 @@
      :changes (->> (rest (get-in entry [5]))
                    (map #(into {} (rest %))))})
 
+(defn to-schema
+  [entry]
+  {:commit/rev (get-in entry [1 1])
+   :commit/date (get-in entry [2 1])
+   :commit/author {:author/name (get-in entry [3 1])}
+   :commit/message (get-in entry [4 1])
+   :commit/changes (->> (rest (get-in entry [5]))
+                        (map #(into {} (rest %)))
+                        (map #(rename-keys % {:added :change/added
+                                              :deleted :change/deleted
+                                              :filename :change/file}))
+                        (map
+                         (fn [m]
+                           (update m
+                                   :change/file
+                                   #(assoc {} :file/url %)))))})
+
 (defn update-last
   "updates the last element in a vector m with the function f"
   [m f]
@@ -54,41 +71,54 @@
   [pred]
   (fn [acc elem] (split2 acc elem pred)))
 
-(defn git-log
-  ([path after-date]
-   (->>
-    (sh "git"
-        "-C" path
-        "log"
-        "--all"
-        "-C"
-        "-M"
-        (str "--after="after-date)
-        "--pretty=format:--%h--%cd--%cn--%s"
-        "--date=short"
-        "--numstat")
-    :out
-    (spit log-file))))
+(defn ^java.io.Reader exec-stream
+  [^String cmd]
+  (-> (Runtime/getRuntime)
+      (.exec cmd)
+      .getInputStream
+      clojure.java.io/reader))
 
-(defn read-log [filename]
-  (with-open [rdr (java.io.BufferedReader. (java.io.FileReader. filename))]
+(defn git-log-cmd [path after-date]
+  (str "git"
+     " -C " path
+     " log"
+     " --all"
+     " -C"
+     " -M"
+     " --after="after-date
+     " --pretty=format:--%h--%cd--%cn--%s"
+     " --date=short"
+     " --numstat"))
+
+(defn read-log [^String cmd]
+  (with-open [rdr (exec-stream cmd)]
     (->> (line-seq rdr)
          (reduce (split-when empty?) [[]])
          doall)))
 
-(defn parse-log [filename]
-  (->> (read-log filename)
-       (map #(->> % (map (fn [x] (str x \newline))) (apply str)))
-       (map entry-grammar)
-       (map to-map)))
+(defn parse-log [^String cmd]
+  (let [formatter (java.text.SimpleDateFormat. "yyyy-MM-dd")
+        parse-int (fn [x] (Long/valueOf x))
+        update-changes (fn [e]
+                         (-> e
+                             (update-in [:change/added] parse-int)
+                             (update-in [:change/deleted] parse-int)))]
+   (->> (read-log cmd)
+        (map #(->> % (map (fn [x] (str x \newline))) (apply str)))
+        (map entry-grammar)
+        (map to-schema)
+        (remove #(some nil? (vals %)))
+        (map (fn [m] (-> m
+                         (update-in [:commit/date] #(.parse formatter %))
+                         (update-in [:commit/changes]
+                                    (fn [coll] (->> coll
+                                                    (map update-changes))))))))))
 
 (defn get-log
   ([path]
    (get-log path "1970-01-01"))
   ([path after-date]
-   (do
-     (git-log path after-date)
-     (parse-log log-file))))
+   (parse-log (git-log-cmd path after-date))))
 
 (comment
 
@@ -98,13 +128,13 @@
 
   (entry-grammar entry-str)
 
-  (to-map
-   [:entry
-    [:rev "ebd2b76"]
-    [:date "2020-01-25"]
-    [:author "Name with Spaces"]
-    [:message "Add a commit message for tests"]
-    [:changes [:change [:added "3"] [:deleted "3"] [:filename "README.md"]]]])
+  (to-schema
+     [:entry
+      [:rev "ebd2b76"]
+      [:date "2020-01-25"]
+      [:author "Name with Spaces"]
+      [:message "Add a commit message for tests"]
+      [:changes [:change [:added "3"] [:deleted "3"] [:filename "README.md"]]]])
 
   ;; experimental
   (let [rdr (java.io.BufferedReader. (java.io.StringReader. "1\n2\n\n3\n\n"))]
