@@ -59,10 +59,17 @@
      {:db/ident :file/loc
       :db/valueType :db.type/long
       :db/cardinality :db.cardinality/one
-      :db/doc "lines of code"}])
+      :db/doc "lines of code"}
+     {:db/ident :file/language
+      :db/valueType :db.type/string
+      :db/cardinality :db.cardinality/one}
+     {:db/ident :file/comment
+      :db/valueType :db.type/long
+      :db/cardinality :db.cardinality/one}])
 
 (comment
   (require '[cpxlyze.parsers.git :refer [get-log]])
+  (require '[cpxlyze.parsers.cloc :refer [get-loc]])
 
   (def cfg {:store {:backend :mem :id "example"} :initial-tx schema})
 
@@ -70,10 +77,62 @@
   (d/create-database cfg)
   (def conn (d/connect cfg))
 
-  (d/transact conn (into [] (get-log "../code-maat/")))
+  (get-loc "../code-maat/")
 
-  (d/q '[:find ?name
+  (d/transact conn (into [] (get-log "../code-maat/")))
+  (d/transact conn {:tx-data (into [] (get-loc "../code-maat/"))})
+
+  (d/transact conn {:tx-data {:file/name "README.md"
+                              :file/loc (int 0)}})
+
+  (->> (into [] (get-loc "../code-maat/"))
+       (map :file/comment)
+       (map #(= (class %) java.lang.Long)))
+
+  (d/q '[:find (pull ?e pattern)
+         :in $ $date pattern
          :where
-         [_ :file/url ?name]]
-       @conn)
+         [?e :commit/date ?date]
+         [(> ?date $date)]]
+       @conn da file-pattern)
+
+  (->>
+   (d/q '[:find ?c ?fname
+          :in $ $date
+          :where
+          [?e :commit/date ?date]
+          [(> ?date $date)]
+          [?e :commit/changes ?c]
+          [?c :change/file ?f]
+          [?f :file/url ?fname]]
+        @conn da)
+   (map second))
+
+  (second [1 2])
+
+  (def file-pattern
+    [{:commit/changes [{:change/file [:file/url]}]}])
+
+  (->> result
+       (reduce (fn [acc e] (conj acc (first e))) '()))
+
+  (def da (date 2014 01 01))
+
+
+
+;; => ([#:commit{:rev "25ed6cb"}]
+;;     [#:commit{:rev "02a760a"}]
+;;     [#:commit{:rev "61df934"}]
+;;     [#:commit{:rev "d6524ab"}])
+
+  '[~da]
   )
+
+(defn to-date [^java.time.LocalDate date]
+  (-> date
+      (.atStartOfDay (java.time.ZoneId/systemDefault))
+      (.toInstant)
+      (java.util.Date/from)))
+
+(defn date [year month day]
+  (to-date (java.time.LocalDate/of year month day)))

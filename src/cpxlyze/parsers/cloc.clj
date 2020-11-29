@@ -1,36 +1,38 @@
 (ns cpxlyze.parsers.cloc
-  (:require [clojure.java.shell :refer [sh]]
-            [clojure-csv.core :as csv]
-            [clojure.string :refer [replace-first]]))
+  (:require [clojure-csv.core :as csv]
+            [clojure.string :refer [replace-first]]
+            [cpxlyze.parsers.git :refer [exec-stream]]))
 
-(def csv-file "resources/loc.csv")
+(defn cloc-cmd [path]
+  (str "cloc " path " --by-file --csv --quiet"))
 
-(defn cloc [path]
-  (sh "cloc" path "--by-file" "--csv" "--quiet" (str "--out=" csv-file)))
-
-(defn read-cloc [filename]
-  (with-open [file (java.io.BufferedReader. (java.io.FileReader. filename))]
-    (csv/parse-csv (slurp file))))
+(defn read-cloc [cmd]
+  (with-open [file (exec-stream cmd)]
+    (doall (map (comp first csv/parse-csv) (line-seq file)))))
 
 (defn drop-csv-metadata [coll]
   (-> coll rest butlast))
 
 (defn- to-map [coll]
   (let [[lang name _ comment code] coll]
-      {:language lang
-       :filename name
-       :comment comment
-       :code code}))
+      {:file/language lang
+       :file/url name
+       :file/comment comment
+       :file/loc code}))
 
 (defn- remove-path-prefix [coll path]
-  (let [name (replace-first (:filename coll) path "")]
-    (assoc coll :filename name)))
+  (let [name (replace-first (:file/url coll) path "")]
+    (assoc coll :file/url name)))
 
 (defn parse-cloc [path]
-  (->> (read-cloc csv-file)
+  (->> (read-cloc (cloc-cmd path))
+       rest
        drop-csv-metadata
        (map to-map)
-       (map #(remove-path-prefix % path))))
+       (map #(remove-path-prefix % path))
+       (map (fn [m] (-> m
+                        (update :file/loc #(Long/valueOf %))
+                        (update :file/comment #(Long/valueOf %)))))))
 
 (defn kv-name-loc
   "transform to {\"filename\" 42}"
@@ -38,22 +40,17 @@
   (->> coll
        (reduce (fn [acc elem]
                  (assoc acc
-                        (:filename elem)
-                        (Integer/valueOf(:code elem)))) {})))
+                        (:file/url elem)
+                        (:file/loc elem))) {})))
 
 (defn get-loc
   "returns a map {filename loc}"
   [path]
-  (do
-    (cloc path)
-    (-> path parse-cloc kv-name-loc)))
+  (-> path parse-cloc))
 
 (comment
 
   (def path "../code-maat/")
-
-  ;; generate file
-  (cloc path)
 
   (-> path parse-cloc)
 
