@@ -9,4 +9,5 @@
 /.nrepl-port
 .hgignore
 .hg/
-/resources/*
+.lsp/
+.clj-kondo/
