@@ -7,4 +7,4 @@ Mines data from a git project and creates charts with vega
 
 For example a heat map of the code base:
 
-![Visualization](https://github.com/lhrb/woertle/blob/main/resources/visualization.png)
+![Visualization](https://github.com/lhrb/cpxlyze/blob/main/resources/visualization.png)
